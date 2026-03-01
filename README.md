@@ -13,7 +13,7 @@ A lightweight, 3D endless runner built entirely with vanilla JavaScript and Thre
 
 
 | <img src="docs/screenshot1.png" width="400" alt="Gameplay screenshot"> | <img src="docs/screenshot2.png" width="400" alt="Mobile screenshot"> | <img src="docs/screenshot3.png" width="400" alt="Level editor screenshot"> | <img src="docs/screenshot4.png" width="400" alt="Shop screenshot"> 
-|:---:|:---:|
+|:---:|:---:|:---:|:---:|
 | *Procedurally generated 3D tracks* | *Mobile-friendly and custom levels* | *Level editor with import/export functionality* | *In-game shop and unlockables* |
 
 ---
