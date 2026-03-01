@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <!-- Viewport locked to prevent zooming -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <title>Sky Fox</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <div id="countdown-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; z-index: 150; pointer-events: none;">
+            <h1 id="countdown-text" style="font-size: 8rem; color: #fff; font-weight: 900; text-shadow: 0 0 20px #FF4500; font-style: italic;">3</h1>
+        </div>
+
+        <div id="warp-flash"></div>
+        <div id="lolly-popup"></div>
+
+        <div id="hud-left">
+            <div id="progress-display" class="hud-text">Prog: 0%</div>
+            <div id="combo-text">COMBO x2!</div>
+        </div>
+        <div id="hud-right">
+            <div class="hud-text">Score <span id="multiplier-text">x1.0</span></div>
+            <div id="score-display" class="hud-text score-text">0</div>
+        </div>
+
+        <div id="speed-bar-container">
+            <div class="hud-label">SPEED <span id="speed-text">5</span></div>
+            <div class="bar-bg"><div id="speed-fill"></div></div>
+            <div id="stamina-wrapper" style="display: none;">
+                <div class="hud-label" style="color:#FF3366;">STAMINA</div>
+                <div class="bar-bg"><div id="stamina-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="btn-pause" onclick="togglePause()">|| PAUSE</div>
+
+        <div id="mobile-controls">
+            <div class="control-cluster"><div class="ctrl-btn" id="btn-left">⬅️</div><div class="ctrl-btn" id="btn-right">➡️</div></div>
+            <div class="control-cluster">
+                <div class="col"><div class="ctrl-btn" id="btn-up">⬆️</div><div class="ctrl-btn" id="btn-down">⬇️</div></div>
+                <div class="ctrl-btn btn-jump" id="btn-jump">JMP</div>
+            </div>
+        </div>
+
+        <!-- HELP SCREEN -->
+        <div id="help-screen" class="modal">
+            <h1 class="title-text" style="font-size: 2rem;">How to Play</h1>
+            <div class="modal-content">
+                <h2>Controls</h2>
+                <ul>
+                    <li><b>Left / Right:</b> Steer the Fox</li>
+                    <li><b>Up / Down:</b> Accelerate and Brake</li>
+                    <li><b>Tap Spacebar:</b> Short Jump</li>
+                    <li><b>Press Spacebar (Mid-air):</b> <b>Double Jump!</b> Gives a brief magnet effect.</li>
+                    <li><b>Hold Spacebar (Falling):</b> Deploy Energy Wings to Glide!</li>
+                    <li><b>P or ESC:</b> Pause the game</li>
+                </ul>
+                <h2>Mechanics</h2>
+                <ul>
+                    <li>The faster you go, the higher your <b>Score Multiplier!</b></li>
+                    <li><b>Warp Gates:</b> In Endless mode, survive 500 blocks to enter the warp gate, earn a Star and continue your run in a new world! Becomes increasingly difficult.</li>
+                </ul>
+                <h2>Tiles & Obstacles</h2>
+                <ul>
+                    <li>🟦 <b>Blue buttons:</b> Springs - bounce high!</li>
+                    <li>⏫ <b>Glowing arrows:</b> Boost Pads - break the speed limit!</li>
+                    <li>🟥 <b>Red:</b> Lava - instant Death!</li>
+                    <li>🟨 <b>Dusty:</b> Slows you down drastically.</li>
+                    <li>🚪 <b>Tunnels:</b> Steer safely <i>through</i> them. Jumping inside will bonk your head. Jumping on top lands you on deadly spikes!</li>
+                    <li>🟪 <b>Gems:</b> Collect for Combo Points.</li>
+                    <li>Hint: the level editor has some additional tiles you can explore!</li>
+                </ul>
+            </div>
+            <button class="btn-small btn-secondary" style="font-size: 16px; padding: 10px 20px;" onclick="closeHelp()">Back to Menu</button>
+        </div>
+
+        <!-- LEVEL EDITOR UI -->
+        <div id="editor-screen" class="modal">
+            <h1 class="title-text" style="font-size: 2rem;">Level Editor</h1>
+            <div class="editor-header">
+                <div class="palette" id="palette"></div>
+
+                <div style="background:#222; padding:8px; border-radius:8px; border:1px solid #555; display:flex; flex-direction:column; gap:5px; align-items:center;">
+                    <label style="color:#fff; font-size:12px; font-weight:bold; margin:0; cursor:pointer;">
+                        <input type="checkbox" id="editor-stamina-toggle" checked style="width:auto; vertical-align:middle;"> Use Stamina
+                    </label>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="color:#aaa; font-size:10px;">Drain:</span>
+                        <input type="range" id="editor-drain" min="0.05" max="0.6" step="0.05" value="0.1" style="width:80px; padding:0; height:10px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:5px;">
+                    <button class="btn-small btn-secondary" onclick="exportLevel()">Export</button>
+                    <button class="btn-small btn-secondary" onclick="importLevel()">Import</button>
+                </div>
+
+                <div style="display:flex; gap:5px; width:100%; justify-content: center;">
+                    <button class="btn-small btn-secondary" onclick="closeEditor()">Cancel</button>
+                    <button class="btn-small" onclick="playCustomLevel()">Play Level</button>
+                </div>
+            </div>
+            <div id="editor-grid-container"><div id="editor-grid"></div></div>
+            <p style="color:#aaa; font-size:12px; margin-top:5px; margin-bottom:20px;">Click & drag to paint. The fox starts at the bottom. Use the '🏁' flag to end early.</p>
+        </div>
+
+            <!-- SHOP SCREEN -->
+            <div id="shop-screen" class="modal">
+                <h1 class="title-text" style="font-size: 2rem;">Star Shop</h1>
+                <p style="color:#FF00FF; font-weight:bold; font-size:18px; margin:0 0 10px 0;">You have: <span id="shop-lolly-count">0</span> Stars</p>
+                <p style="color:#aaa; font-size:12px; margin-top:0;">Warp in Endless mode to earn popsicles!</p>
+                <div class="modal-content" id="shop-items-container">
+                <!-- Populated via JS (unlockable items) -->
+                </div>
+                <button class="btn-small btn-secondary" style="font-size: 16px; padding: 10px 20px;" onclick="closeShop()">Back to Menu</button>
+            </div>
+
+        <!-- MAIN MENU -->
+        <div id="ui-layer">
+            <div id="start-screen" class="panel">
+                <h1 class="title-text">Sky Fox</h1>
+                <div class="hud-text" style="color:#FFD700; margin-bottom: 5px; font-size: 16px;">Best Score: <span id="highscore-display">0</span></div>
+                <div class="hud-text" style="color:#FF00FF; margin-bottom: 10px; font-size: 16px;">Stars: <span id="menu-lolly-count">0</span></div>
+
+                <div class="settings-group">
+                    <label>Game Mode</label>
+                    <select id="mode-select" style="display:none"></select>
+
+                    <div id="level-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
+                        <!-- Populated via JS (unlockable items) -->
+                    </div>
+
+                    <label style="margin-top:10px;">Difficulty</label>
+                    <select id="diff-select" onchange="changeDifficulty()">
+                        <option value="easy">Easy (Slower, 0.5x Multiplier)</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="hard">Hard (Faster, 1.5x Multiplier)</option>
+                    </select>
+                </div>
+
+                <div class="settings-group">
+                    <label>World Theme</label>
+                    <select id="theme-select" onchange="previewTheme()">
+                        <option value="forest">🌲 Forest Clearing</option>
+                        <option value="mountain">⛰️ Snowy Mountain</option>
+                        <option value="canyon">🏜️ Sunset Canyon</option>
+                        <!-- Extra unlocked themes inserted via JS -->
+                    </select>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="grid-toggle"> 🔲 Grid-Based Steering
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="gyro-toggle" onchange="toggleGyro(this)"> 📱 Gyro Controls (Mobile Tilt)
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="stamina-toggle" onchange="previewLevel()"> 🍓 Enable Stamina Survival
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="sound-toggle" checked onchange="toggleSound(this)"> 🔊 Enable Sound Effects
+                    </label>
+                </div>
+
+                <button onclick="startGame()">Run!</button>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="openHelp()" class="btn-secondary" style="font-size: 16px;">How to Play</button>
+                    <button onclick="openEditor()" class="btn-secondary" style="font-size: 16px;">Level Editor</button>
+                    <button onclick="openShop()" class="btn-shop">💰 Shop</button>
+                </div>
+            </div>
+
+            <div id="game-over-screen" class="panel" style="display: none;">
+                <h1 class="title-text" id="end-title" style="color: #FF4500;">Game Over</h1>
+                <p id="end-reason" style="font-size: 18px; margin-bottom: 20px;">You crashed!</p>
+                <button onclick="resetMenu()" class="btn-secondary">Main Menu</button>
+                <button onclick="startGame()">Try Again (Space)</button>
+            </div>
+
+            <div id="pause-screen" class="panel" style="display: none;">
+                <h1 class="title-text">PAUSED</h1>
+                <button onclick="togglePause()">Resume</button>
+                <button onclick="resetMenu()" class="btn-secondary">Quit to Menu</button>
+            </div>
+        </div>
+
+        <script src="three.min.js"></script>
+        <script src="game.js"></script>
+    </body>
+</html>
