@@ -719,31 +719,112 @@ function rebuildPlayer(isPreview = false) {
     playerGroup.add(body, head, tailGroup, wingL, wingR, ...paws);
 }
 
+// --- TOUCH CONTROL VARIABLES ---
+let touchControlActive = false;
+let targetTouchX = 0;
+let steeringTouchId = null;
+
 function setupInput() {
+    // Keyboard Listeners
     window.addEventListener('keydown', (e) => {
         if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
         if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 
+        if (e.code === 'KeyB') autopilotEnabled = !autopilotEnabled; // Bot toggle
+
         if (e.code === 'Space') {
             if (!isPlaying) {
-                if (isDead && canRestart) {
-                    startGame();
-                } else if (!isDead && document.getElementById('start-screen').style.display !== 'none' && document.getElementById('ui-layer').style.display !== 'none') {
-                    startGame();
-                }
+                if (isDead && canRestart) startGame();
+                else if (!isDead && document.getElementById('start-screen').style.display !== 'none' && document.getElementById('ui-layer').style.display !== 'none') startGame();
             }
         }
-
         if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
     });
         window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.code)) keys[e.code] = false; });
-        const bindTouch = (id, key) => {
-            const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; }, {passive: false});
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; }, {passive: false});
-            btn.addEventListener('touchcancel', (e) => { e.preventDefault(); keys[key] = false; }, {passive: false});
-        };
-        bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight'); bindTouch('btn-up', 'ArrowUp'); bindTouch('btn-down', 'ArrowDown'); bindTouch('btn-jump', 'Space');
+
+        // Jump Button Listener
+        const jumpBtn = document.getElementById('btn-jump');
+        if (jumpBtn) {
+            jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); keys['Space'] = true; }, {passive: false});
+            jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); keys['Space'] = false; }, {passive: false});
+            jumpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); e.stopPropagation(); keys['Space'] = false; }, {passive: false});
+        }
+
+        // Virtual Trackpad Listeners
+        const trackpad = document.getElementById('virtual-trackpad');
+        const thumb = document.getElementById('trackpad-thumb');
+
+        if (trackpad) {
+            trackpad.addEventListener('touchstart', (e) => {
+                if (!isPlaying || isPaused || isDead) return;
+                e.preventDefault(); // Stop screen scrolling
+                for(let i=0; i<e.changedTouches.length; i++) {
+                    if (steeringTouchId === null) {
+                        let t = e.changedTouches[i];
+                        steeringTouchId = t.identifier;
+                        touchControlActive = true;
+                        thumb.style.display = 'block';
+                        processTrackpadInput(t, trackpad, thumb);
+                        break;
+                    }
+                }
+            }, {passive: false});
+
+            trackpad.addEventListener('touchmove', (e) => {
+                if (!isPlaying || isPaused || isDead || !touchControlActive) return;
+                e.preventDefault();
+                for(let i=0; i<e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.identifier === steeringTouchId) {
+                        processTrackpadInput(t, trackpad, thumb);
+                    }
+                }
+            }, {passive: false});
+
+            const handleTouchEnd = (e) => {
+                for(let i=0; i<e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === steeringTouchId) {
+                        touchControlActive = false;
+                        steeringTouchId = null;
+                        thumb.style.display = 'none';
+                        keys.ArrowUp = false;
+                        keys.ArrowDown = false;
+                    }
+                }
+            };
+
+            trackpad.addEventListener('touchend', handleTouchEnd, {passive: false});
+            trackpad.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+        }
+}
+
+// Trackpad Helper Function
+function processTrackpadInput(touch, padElement, thumbElement) {
+    let rect = padElement.getBoundingClientRect();
+
+    // Constrain visually within the box
+    let x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+    let y = Math.max(0, Math.min(touch.clientY - rect.top, rect.height));
+
+    thumbElement.style.left = x + 'px';
+    thumbElement.style.top = y + 'px';
+
+    // Steering logic (map X 0->1 to the game lanes)
+    let pctX = x / rect.width;
+    let maxTrackX = Math.floor(NUM_LANES / 2) * BLOCK_SIZE;
+    targetTouchX = (pctX * 2 - 1) * maxTrackX;
+
+    // Speed logic (Deadzone in the middle 30% along the dashed line)
+    let pctY = y / rect.height;
+    if (pctY < 0.35) { keys.ArrowUp = true; keys.ArrowDown = false; }
+    else if (pctY > 0.65) { keys.ArrowUp = false; keys.ArrowDown = true; }
+    else { keys.ArrowUp = false; keys.ArrowDown = false; }
+}
+
+function updateTouchX(clientX) {
+    let screenPctX = clientX / window.innerWidth;
+    let maxTrackX = Math.floor(NUM_LANES / 2) * BLOCK_SIZE;
+    targetTouchX = (screenPctX * 2 - 1) * maxTrackX;
 }
 
 window.togglePause = function() {
@@ -1751,16 +1832,30 @@ function updatePhysics() {
 
         if (isGridMovement) targetLaneX = Math.round(playerGroup.position.x / BLOCK_SIZE) * BLOCK_SIZE;
     } else if (isGridMovement) {
-        if (keys.ArrowLeft && !leftEdgePressed) { targetLaneX -= BLOCK_SIZE; leftEdgePressed = true; }
-        if (!keys.ArrowLeft) leftEdgePressed = false;
-        if (keys.ArrowRight && !rightEdgePressed) { targetLaneX += BLOCK_SIZE; rightEdgePressed = true; }
-        if (!keys.ArrowRight) rightEdgePressed = false;
+        // Touch Grid Snapping
+        if (touchControlActive) {
+            targetLaneX = Math.round(targetTouchX / BLOCK_SIZE) * BLOCK_SIZE;
+        } else {
+            if (keys.ArrowLeft && !leftEdgePressed) { targetLaneX -= BLOCK_SIZE; leftEdgePressed = true; }
+            if (!keys.ArrowLeft) leftEdgePressed = false;
+            if (keys.ArrowRight && !rightEdgePressed) { targetLaneX += BLOCK_SIZE; rightEdgePressed = true; }
+            if (!keys.ArrowRight) rightEdgePressed = false;
+        }
         targetLaneX = Math.max(-Math.floor(NUM_LANES/2) * BLOCK_SIZE, Math.min(Math.floor(NUM_LANES/2) * BLOCK_SIZE, targetLaneX));
         moveX = (targetLaneX - playerGroup.position.x) * 0.3;
         window.slideVelocityX = moveX;
     } else {
-        if (keys.ArrowLeft) moveX -= currentDiff.steer;
-        if (keys.ArrowRight) moveX += currentDiff.steer;
+        // Touch Smooth Steering
+        if (touchControlActive) {
+            moveX = (targetTouchX - playerGroup.position.x) * 0.15; // Smooth interpolation
+            let maxT = currentDiff.steer * 2.5; // Slightly higher max turn speed so touch feels responsive
+            if (moveX > maxT) moveX = maxT;
+            if (moveX < -maxT) moveX = -maxT;
+        } else {
+            if (keys.ArrowLeft) moveX -= currentDiff.steer;
+            if (keys.ArrowRight) moveX += currentDiff.steer;
+        }
+
         if (gyroActive && gyroTilt !== 0) moveX += gyroTilt * currentDiff.steer * 1.5;
         window.slideVelocityX = moveX;
     }
