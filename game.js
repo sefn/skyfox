@@ -730,7 +730,8 @@ function setupInput() {
         if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
         if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
 
-        if (e.code === 'KeyB') autopilotEnabled = !autopilotEnabled; // Bot toggle
+        // Autopilot feature not released yet
+        // if (e.code === 'KeyB') autopilotEnabled = !autopilotEnabled;
 
         if (e.code === 'Space') {
             if (!isPlaying) {
