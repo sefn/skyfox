@@ -1790,9 +1790,11 @@ function updatePhysics() {
                 dPos[dustIdx*3+1] = playerGroup.position.y; dPos[dustIdx*3+2] = playerGroup.position.z + 0.5;
                 dustIdx = (dustIdx + 1) % PARTICLE_COUNT;
             }
-        } else if (!isGrounded && doubleJumps === 0) {
-            doubleJumps = 1; velocityY = jumpStrength * 0.85; dashTimer = 15; playSound('jump', 1.5);
         }
+        // Double jump logic - disabled
+        // else if (!isGrounded && doubleJumps === 0) {
+        //      doubleJumps = 1; velocityY = jumpStrength * 0.85; dashTimer = 15; playSound('jump', 1.5);
+        // }
     }
     spaceWasDown = keys.Space;
 
