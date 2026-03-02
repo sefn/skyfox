@@ -36,12 +36,13 @@
         <div id="btn-pause" onclick="togglePause()">|| PAUSE</div>
 
         <div id="mobile-controls">
-            <div class="control-cluster"><div class="ctrl-btn" id="btn-left">⬅️</div><div class="ctrl-btn" id="btn-right">➡️</div></div>
-            <div class="control-cluster">
-                <div class="col"><div class="ctrl-btn" id="btn-up">⬆️</div><div class="ctrl-btn" id="btn-down">⬇️</div></div>
-                <div class="ctrl-btn btn-jump" id="btn-jump">JMP</div>
+                <div id="virtual-trackpad">
+                    <div id="trackpad-center-line"></div>
+                    <div id="trackpad-hint">STEER ↔️<br>SPEED ↕️</div>
+                    <div id="trackpad-thumb"></div>
+                </div>
+                <div class="ctrl-btn btn-jump" id="btn-jump">JUMP</div>
             </div>
-        </div>
 
         <!-- HELP SCREEN -->
         <div id="help-screen" class="modal">
