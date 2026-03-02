@@ -75,7 +75,7 @@ const THEMES = {
         canyon: { bg: 0xeb7a34, mat1: 0xd27d2d, mat2: 0xb36522, obstacle: 'cactus', slowMat: 0xedc9af, slowParticle: 0xedc9af, tunnelCol: 0x8a3e14, waterColor: 0x8a3e14, waterOpacity: 0.6 },
         neon: { bg: 0x050510, mat1: 0x111122, mat2: 0x222244, obstacle: 'laser', slowMat: 0x440044, slowParticle: 0xff00ff, tunnelCol: 0x000000, waterColor: 0xff00ff, waterOpacity: 0.4 },
         candy: { bg: 0xFFC0CB, mat1: 0xFFC0CB, mat2: 0xFF6984, obstacle: 'lollipop', slowMat: 0xFF69B4, slowParticle: 0xFFFFFF, tunnelCol: 0x8B4513, waterColor: 0xFF1493, waterOpacity: 0.5 },
-        night: { bg: 0x020205, mat1: 0x111111, mat2: 0x222222, obstacle: 'spike', slowMat: 0x550000, slowParticle: 0x880000, tunnelCol: 0x333333, waterColor: 0x000011, waterOpacity: 0.9, isNight: true }
+        night: { bg: 0x020205, mat1: 0x111111, mat2: 0x222222, obstacle: 'spike', slowMat: 0x550055, slowParticle: 0x880088, tunnelCol: 0x333333, waterColor: 0x000011, waterOpacity: 0.9, isNight: true }
 };
 
 const CAMPAIGN_LEVELS = [
@@ -288,26 +288,21 @@ window.closeShop = function() {
     document.getElementById('ui-layer').style.display = 'flex';
 
     isShopping = false;
-    const equippedTheme = currentThemeId;
-
-    document.getElementById('theme-select').value = equippedTheme;
-    applyTheme(THEMES[equippedTheme], equippedTheme);
-    previewLevel();
-
     logoGroup.visible = true;
     playerGroup.visible = false;
 
     // Reset position for gameplay/menu
     playerGroup.position.set(0, 0.5, 0);
-
-    const actualTheme = document.getElementById('theme-select').value;
-    applyTheme(THEMES[actualTheme]);
-    previewLevel();
-
     camera.position.set(0, 6, 8);
     camera.lookAt(0, 2, -15);
 
+    // FIX: Rebuild the player FIRST...
     rebuildPlayer(false);
+
+    // ...THEN apply the theme so the flashlight attaches to the newly built fox!
+    const actualTheme = document.getElementById('theme-select').value;
+    applyTheme(THEMES[actualTheme], actualTheme);
+    previewLevel();
 };
 
 window.buyItem = function(id) {
@@ -793,7 +788,7 @@ function applyTheme(theme, id) {
         if(amb) amb.intensity = 0.1;
         if(dir) dir.intensity = 0.1;
         if (!flashlight) {
-            flashlight = new THREE.SpotLight(0xffffff, 2.5, 40, 0.5, 0.5, 1);
+            flashlight = new THREE.SpotLight(0xffffff, 5.0, 70, 0.6, 0.3, 1);
             flashlight.position.set(0, 1.5, 0.5);
             flashlight.target.position.set(0, 0, -15);
             flashlight.name = "flashlight";
@@ -1016,6 +1011,25 @@ function buildGeometryFromData() {
                     block.receiveShadow = true; trackGroup.add(block);
                     if (f === FLOOR.TUNNEL) trackGroup.add(createTunnel(posX, posZ, currentTheme));
                     if (f === FLOOR.HIGH_TUNNEL) trackGroup.add(createTunnel(posX, posZ, currentTheme, 1.0));
+
+                    // Night themed maps: If it is night time, and the NEXT block in this lane is a gap, add a reflector
+                    if (currentTheme.isNight && vz < TRACK_LENGTH - 1) {
+                        let nextTile = trackData[vz + 1][vx];
+                        if (nextTile && nextTile.f === FLOOR.EMPTY) {
+                            // Create a glowing yellow safety strip
+                            let refMat = new THREE.MeshBasicMaterial({ color: 0xFFCC00 });
+                            let refGeo = new THREE.BoxGeometry(BLOCK_SIZE * 0.8, 0.05, 0.3);
+                            let reflector = new THREE.Mesh(refGeo, refMat);
+
+                            // Calculate the correct Y height so it sits on top of the block
+                            let blockTop = (f === FLOOR.HIGH || f === FLOOR.HIGH_ICE || f === FLOOR.HIGH_LAVA || f === FLOOR.HIGH_TUNNEL) ? 1.5 :
+                            (f === FLOOR.VHIGH || f === FLOOR.VHIGH_ICE || f === FLOOR.VHIGH_LAVA) ? 2.5 : 0.5;
+
+                            // Position it at the far edge of the current block
+                            reflector.position.set(posX, blockTop + 0.01, posZ - (BLOCK_SIZE / 2) + 0.15);
+                            trackGroup.add(reflector);
+                        }
+                    }
                 }
 
                 let itemY = (f === FLOOR.EMPTY) ? 2.5 + Math.sin(vz * 0.4) * 1.5 : floorY * 2;
